@@ -11,7 +11,7 @@ void setup() {
   // serial for logging
   Serial.begin(9600);
   // temp and humidity initialisation, pin 40
-  //TempHumid.setup(40);
+  TempHumid.setup(50, 'AUTO_DETECT');
   // wifi initialisation, pin rx1 & tx1
   Serial1.begin(115200);
   WiFi.init(&Serial1);
@@ -30,6 +30,11 @@ void setup() {
 void loop() {
   WiFiEspClient WebClient = WebServer.available();
   String RequestHeader = "";
+  TempAndHumidity measurement = TempHumid.getTempAndHumidity();
+  Serial.print("Temperature: ");
+  Serial.print(measurement.temperature);
+  Serial.println();
+  delay(1000);
   if (WebClient) {
     Serial.println("client connection started");
     String currentLine = "";
@@ -51,9 +56,21 @@ void loop() {
 
             if (RequestHeader.indexOf("GET /temp") >= 0) {
               Serial.println("/temp requested");
+              WebClient.print("<p>Current Temperature: ");
+              WebClient.print(measurement.temperature);
+              WebClient.print("</p>");
             }
             else if (RequestHeader.indexOf("GET /humid") >= 0) {
               Serial.println("/humid requested");
+              WebClient.print("<p>Current Humidity: ");
+              WebClient.print(measurement.humidity);
+              WebClient.print("</p>");
+            }
+            else if (RequestHeader.indexOf("GET /light") >= 0) {
+              Serial.println("/light requested");
+              WebClient.print("<p>Current Ambient Light: ");
+              WebClient.print(measurement.humidity);
+              WebClient.print("</p>");
             }
             else if (RequestHeader.indexOf("GET /ping") >= 0) {
               Serial.println("/ping requested");
