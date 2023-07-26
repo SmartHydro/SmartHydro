@@ -3,6 +3,7 @@
 #include <WiFiEspClient.h>
 #include <WiFiEspServer.h>
 #include <DHTesp.h>
+#include <ArduinoJson.h>
 
 WiFiEspServer WebServer(80);
 DHTesp TempHumid;
@@ -14,15 +15,25 @@ unsigned long Current_Time, Loop_Time;
 #define AP_SSID "VCNMB-Hydro"
 #define AP_PASS "hydro123"
 
+const unsigned int PUMP_1_PIN = 8;
+const unsigned int PUMP_2_PIN = 9;
+const unsigned int PUMP_3_PIN = 10;
+const unsigned int FAN_1_PIN = 11;
+const unsigned int FAN_2_PIN = 12;
+const unsigned int LIGHT_1_PIN = 13;
+const unsigned int TEMP_HUMID_SENS_PIN = 50;
+const unsigned int FLOW_SENS_PIN = 51;
+const unsigned int AMB_LIGHT_SENS_PIN = 0;
+
 void setup() {
-  // serial for logging
+  // serial connection 
   Serial.begin(115200);
 
-  // temp and humidity initialisation, pin 40
-  TempHumid.setup(50, 'AUTO_DETECT');
+  // DHT22 initialisation 
+  TempHumid.setup(TEMP_HUMID_SENS_PIN, 'AUTO_DETECT');
 
   // flow rate
-  pinMode(51, INPUT);
+  pinMode(FLOW_SENS_PIN, INPUT);
   attachInterrupt(0, Detect_Rising_Edge, FALLING);
   Current_Time = millis();
   Loop_Time = Current_Time;
@@ -36,36 +47,32 @@ void setup() {
   }
 
   IPAddress SysIP(192, 168, 1, 10);
-  WiFi.begin(STATION_SSID, STATION_PASS);
-  Serial.print("Connecting to ");
-  Serial.print(STATION_SSID);
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    delay(100);
-    Serial.print(".");
-  }
-  //WiFi.configAP(SysIP);
+  //WiFi.begin(STATION_SSID, STATION_PASS);
+  //Serial.print("Connecting to ");
+  //Serial.print(STATION_SSID);
+  //while (WiFi.status() != WL_CONNECTED)
+  //{
+  //delay(100);
+  //Serial.print(".");
+  //}
+  WiFi.configAP(SysIP);
   WiFi.beginAP(AP_SSID, 13, AP_PASS, ENC_TYPE_WPA2_PSK, false);
   Serial.println();
-  //Serial.print(AP_SSID);
-  Serial.print(STATION_SSID);
+  Serial.print(AP_SSID);
+  //Serial.print(STATION_SSID);
   Serial.print(" IP Address: ");
   Serial.print(WiFi.localIP());
   Serial.println();
   WebServer.begin();
 
-  // relay test
-  pinMode(13, OUTPUT);
-  pinMode(12, OUTPUT);
-  pinMode(11, OUTPUT);
-  pinMode(10, OUTPUT);
-  pinMode(9, OUTPUT);
-  pinMode(8, OUTPUT);
+  // initialise relay pins to output mode
+  for(int i = 8; i <= 13; i++) {
+    pinMode(i, OUTPUT);
+  }
 }
 
 void loop() {
   WiFiEspClient WebClient = WebServer.available();
-  TempAndHumidity measurement = TempHumid.getTempAndHumidity();
   String RequestHeader = "";
   if (WebClient) {
     Serial.println("client connection started");
@@ -75,46 +82,15 @@ void loop() {
         Serial.print(c);
         RequestHeader += c;
         if (c == '\n') {
-          WebClient.println("HTTP/1.1 200 OK");
-          WebClient.println("Content-type : text/html");
-          WebClient.println("Connection: close");
-          WebClient.println();
-          WebClient.println("<!DOCTYPE HTML>");
-          WebClient.println("<html>");
-          WebClient.println("<h1>Test Web Server</h1>");
-
-          if (RequestHeader.indexOf("GET /poll") >= 0) {
-            Serial.println("polling all sensors");
-            WebClient.print("<p>Current Temperature: ");
-            WebClient.print(measurement.temperature);
-            WebClient.println("</br>");
-            WebClient.print("Current Humidity: ");
-            WebClient.print(measurement.humidity);
-            WebClient.print("</br>");
-            WebClient.print("Current Ambient Light: ");
-            WebClient.print(analogRead(0), DEC);
-            WebClient.print("</br>");
-            Current_Time = millis();
-            if (Current_Time >= (Loop_Time + 1000)) {
-              Loop_Time = Current_Time;
-              Pulse_Count = 0;
-              WebClient.print("Flow Rate (L/hour): ");
-              WebClient.print((Pulse_Count * 60 / 7.5), DEC);
-              WebClient.print( "</br></p>");
-            }
+          if (RequestHeader.indexOf("GET /hardware.json") >= 0) {
+            serializeJsonPretty(HardwareToJson(), WebClient);
+            break;
           }
 
-          if (RequestHeader.indexOf("GET /relay") >= 0) {
-            Serial.print("toggling relay");
-            for (int i = 8; i <= 13; i++) {
-              digitalWrite(i, !digitalRead(i));
-              delay(500);
-            }
+          if (RequestHeader.indexOf("GET /sensor.json") >= 0) {
+            serializeJsonPretty(SensorToJson(), WebClient);
+            break;
           }
-
-
-          WebClient.println("</html>");
-          break;
         }
       }
     }
@@ -127,4 +103,34 @@ void loop() {
 void Detect_Rising_Edge ()
 {
   Pulse_Count++;
+}
+
+void TogglePin(int Pin) {
+  digitalWrite(Pin, !digitalRead(Pin));
+}
+
+DynamicJsonDocument HardwareToJson() {
+  DynamicJsonDocument temp(128);
+  temp["Pump1"] = digitalRead(PUMP_1_PIN);
+  temp["Pump2"] = digitalRead(PUMP_2_PIN);
+  temp["Pump3"] = digitalRead(PUMP_3_PIN);
+  temp["Fan1"] = digitalRead(FAN_1_PIN);
+  temp["Fan2"] = digitalRead(FAN_2_PIN);
+  temp["Light1"] = digitalRead(LIGHT_1_PIN);
+  return temp;
+}
+
+DynamicJsonDocument SensorToJson() {
+  DynamicJsonDocument temp(128);
+  TempAndHumidity measurement = TempHumid.getTempAndHumidity();
+  temp["Temperature"] = measurement.temperature;
+  temp["Humidity"] = measurement.humidity;
+  temp["LightLevel"] = analogRead(AMB_LIGHT_SENS_PIN);
+  Current_Time = millis();
+  if (Current_Time >= (Loop_Time + 1000)) {
+    temp["FlowRate"] = (Pulse_Count * 60 / 7.5), DEC;
+  }
+  temp["pH"] = "N/A";
+  temp["EC"] = "N/A";
+  return temp;
 }
