@@ -4,6 +4,7 @@
 #include <DHTesp.h>
 #include <ArduinoJson.h>
 #include <DFRobot_EC10.h>
+#include <DFRobot_PH.h>
 
 #define STATION_SSID "beef hotpot"
 #define STATION_PASS "tastyNetwork"
@@ -16,18 +17,20 @@
 #define FAN_2_PIN 11
 #define LIGHT_1_PIN 12
 #define TEMP_HUMID_SENS_PIN 50
-#define FLOW_SENS_PIN 51
+#define FLOW_SENS_PIN 52
 #define AMB_LIGHT_SENS_PIN A0
 #define PH_SENS_PIN A1
 #define EC_SENS_PIN A2
 #define PH_CAL 0.00
 #define FLOW_CAL 0.00
 #define EC_CAL 0.00
+#define BUZZER_PIN 48
 
 WiFiEspServer WebServer(80);
 DHTesp TempHumid;
 DFRobot_EC10 EC10;
-volatile int  Pulse_Count;
+DFRobot_PH PH;
+volatile int Pulse_Count;
 unsigned long Current_Time, Loop_Time;
 
 void setup() {
@@ -48,6 +51,7 @@ void setup() {
 
   // SEN0161 pH Sensor
   pinMode(PH_SENS_PIN, INPUT);
+  PH.begin();
 
   // EC10 Current Sensor
   pinMode(EC_SENS_PIN, INPUT);
@@ -57,7 +61,8 @@ void setup() {
   WiFi.init(&Serial1);
   if (WiFi.status() == WL_NO_SHIELD) {
     Serial.print("no wifi shield, panicking!!!");
-    while (true);
+    while (true)
+      ;
   }
   IPAddress SysIP(192, 168, 1, 10);
 
@@ -75,12 +80,13 @@ void setup() {
   //    while (true);
   //  }
   //}
+
   WiFi.configAP(SysIP);
   WiFi.beginAP(AP_SSID, 13, AP_PASS, ENC_TYPE_WPA2_PSK, false);
   WebServer.begin();
 
   // Relay PWM Pins, 7-12
-  for (int i = 7; i <= 12; i++) {
+  for (int i = 6; i <= 12; i++) {
     pinMode(i, OUTPUT);
   }
 }
@@ -131,6 +137,7 @@ void loop() {
           }
           if (RequestHeader.indexOf("GET /light1") >= 0) {
             TogglePin(LIGHT_1_PIN);
+            TogglePin(BUZZER_PIN);
             serializeJsonPretty(HardwareToJson(), WebClient);
             break;
           }
@@ -143,8 +150,7 @@ void loop() {
   }
 }
 
-void Detect_Rising_Edge_Flow ()
-{
+void Detect_Rising_Edge_Flow() {
   Pulse_Count++;
 }
 
@@ -173,15 +179,16 @@ DynamicJsonDocument SensorToJson() {
   temp["LightLevel"] = analogRead(AMB_LIGHT_SENS_PIN);
   Current_Time = millis();
   if (Current_Time >= (Loop_Time + 1000)) {
-    temp["FlowRate"] = (Pulse_Count * 60 / 7.5), 2;
+    temp["FlowRate"] = (Pulse_Count * 60 / 7.5) + FLOW_CAL, 2;
   }
-  float PH_VOLT = analogRead(PH_SENS_PIN) / 5 * 1024;
-  float PH_LEVEL = (PH_VOLT * 3.5) + PH_CAL;
-  temp["pH"] = -1;
-  float EC_VOLT = analogRead(EC_SENS_PIN) / 1024 * 5000;
+  float PH_VOLT = analogRead(PH_SENS_PIN) / 1024.0 * 5000;
+  float PH_LEVEL = PH.readPH(PH_VOLT, measurement.temperature);
+  temp["pH"] = PH_LEVEL;
+  float EC_VOLT = analogRead(EC_SENS_PIN) / 1024.0 * 5000;
   float EC_TEMP = measurement.temperature;
   float EC_VALUE = EC10.readEC(EC_VOLT, EC_TEMP);
-  temp["ECC"] = -1;
+  temp["EC"] = EC_VALUE;
   EC10.calibration(EC_VOLT, EC_TEMP);
+  PH.calibration(PH_VOLT, measurement.temperature);
   return temp;
 }
