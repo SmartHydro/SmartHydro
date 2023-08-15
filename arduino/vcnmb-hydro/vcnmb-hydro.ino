@@ -6,13 +6,13 @@
 #include <DFRobot_EC10.h>
 #include <DFRobot_PH.h>
 
-#define STATION_SSID "beef hotpot"
-#define STATION_PASS "tastyNetwork"
 #define AP_SSID "VCNMB-Hydro"
 #define AP_PASS "hydro123"
-#define PUMP_1_PIN 7
-#define PUMP_2_PIN 8
-#define PUMP_3_PIN 9
+#define EC_OUT_PIN 5
+#define EC_IN_PIN 6
+#define PH_OUT_PIN 7
+#define PH_IN_PIN 8
+#define CIRC_PUMP_PIN 9
 #define FAN_1_PIN 10
 #define FAN_2_PIN 11
 #define LIGHT_1_PIN 12
@@ -21,10 +21,7 @@
 #define AMB_LIGHT_SENS_PIN A2
 #define PH_SENS_PIN A3
 #define EC_SENS_PIN A4
-#define PH_CAL 0.00
 #define FLOW_CAL 0.00
-#define EC_CAL 0.00
-#define BUZZER_PIN 48
 
 WiFiEspServer WebServer(80);
 DHTesp TempHumid;
@@ -66,29 +63,19 @@ void setup() {
   }
   IPAddress SysIP(192, 168, 1, 10);
 
-  //WiFi.begin(STATION_SSID, STATION_PASS);
-  //Serial.print("Connecting to ");
-  //Serial.print(STATION_SSID);
-  //int wait = 0;
-  //while (WiFi.status() != WL_CONNECTED)
-  //{
-  //  delay(100);
-  //  Serial.print(".");
-  //  wait += 1;
-  // if (wait >= 10) {
-  //    Serial.print("couldn't find network. panicking!!!");
-  //    while (true);
-  //  }
-  //}
-
   WiFi.configAP(SysIP);
   WiFi.beginAP(AP_SSID, 13, AP_PASS, ENC_TYPE_WPA2_PSK, false);
   WebServer.begin();
 
-  // Relay PWM Pins, 7-12
-  for (int i = 6; i <= 12; i++) {
+  // Relay PWM Pins, 5-12
+  for (int i = 5; i <= 12; i++) {
     pinMode(i, OUTPUT);
+    TogglePin(i);
   }
+  // default on
+  TogglePin(LIGHT_1_PIN);
+  TogglePin(FAN_1_PIN);
+  TogglePin(CIRC_PUMP_PIN);
 }
 
 void loop() {
@@ -102,12 +89,12 @@ void loop() {
         Serial.print(c);
         RequestHeader += c;
         if (c == '\n') {
- WebClient.print(
+          WebClient.print(
             "HTTP/1.1 200 OK\r\n"
             "Content-Type: application/json\r\n"
             "Connection: close\r\n"  // the connection will be closed after completion of the response
             "Refresh: 20\r\n"        // refresh the page automatically every 20 sec
-            "\r\n");  
+            "\r\n");
 
           if (RequestHeader.indexOf("GET /hardware.json") >= 0) {
             serializeJsonPretty(HardwareToJson(), WebClient);
@@ -117,34 +104,43 @@ void loop() {
             serializeJsonPretty(SensorToJson(), WebClient);
             break;
           }
-          if (RequestHeader.indexOf("GET /pump1") >= 0) {
-            TogglePin(PUMP_1_PIN);
+          if (RequestHeader.indexOf("GET /ph_in.json") >= 0) {
+            TogglePin(PH_IN_PIN);
             serializeJsonPretty(HardwareToJson(), WebClient);
             break;
           }
-          if (RequestHeader.indexOf("GET /pump2") >= 0) {
-            TogglePin(PUMP_2_PIN);
+          if (RequestHeader.indexOf("GET /ph_out.json") >= 0) {
+            TogglePin(PH_OUT_PIN);
             serializeJsonPretty(HardwareToJson(), WebClient);
             break;
           }
-          if (RequestHeader.indexOf("GET /pump3") >= 0) {
-            TogglePin(PUMP_3_PIN);
+          if (RequestHeader.indexOf("GET /circ_pump.json") >= 0) {
+            TogglePin(CIRC_PUMP_PIN);
             serializeJsonPretty(HardwareToJson(), WebClient);
             break;
           }
-          if (RequestHeader.indexOf("GET /fan1") >= 0) {
+          if (RequestHeader.indexOf("GET /ec_in.json") >= 0) {
+            TogglePin(EC_IN_PIN);
+            serializeJsonPretty(HardwareToJson(), WebClient);
+            break;
+          }
+          if (RequestHeader.indexOf("GET /ec_out.json") >= 0) {
+            TogglePin(EC_OUT_PIN);
+            serializeJsonPretty(HardwareToJson(), WebClient);
+            break;
+          }
+          if (RequestHeader.indexOf("GET /fan_circ.json") >= 0) {
             TogglePin(FAN_1_PIN);
             serializeJsonPretty(HardwareToJson(), WebClient);
             break;
           }
-          if (RequestHeader.indexOf("GET /fan2") >= 0) {
+          if (RequestHeader.indexOf("GET /fan_extractor.json") >= 0) {
             TogglePin(FAN_2_PIN);
             serializeJsonPretty(HardwareToJson(), WebClient);
             break;
           }
-          if (RequestHeader.indexOf("GET /light1") >= 0) {
+          if (RequestHeader.indexOf("GET /light.json") >= 0) {
             TogglePin(LIGHT_1_PIN);
-            TogglePin(BUZZER_PIN);
             serializeJsonPretty(HardwareToJson(), WebClient);
             break;
           }
@@ -167,12 +163,14 @@ void TogglePin(int Pin) {
 
 DynamicJsonDocument HardwareToJson() {
   DynamicJsonDocument temp(128);
-  temp["Pump1"] = digitalRead(PUMP_1_PIN);
-  temp["Pump2"] = digitalRead(PUMP_2_PIN);
-  temp["Pump3"] = digitalRead(PUMP_3_PIN);
-  temp["Fan1"] = digitalRead(FAN_1_PIN);
-  temp["Fan2"] = digitalRead(FAN_2_PIN);
-  temp["Light1"] = digitalRead(LIGHT_1_PIN);
+  temp["pH_In_Pump"] = digitalRead(PH_IN_PIN);
+  temp["pH_Out_Pump"] = digitalRead(PH_OUT_PIN);
+  temp["EC_In_Pump"] = digitalRead(EC_IN_PIN);
+  temp["EC_Out_Pump"] = digitalRead(EC_OUT_PIN);
+  temp["Circulation_Pump"] = digitalRead(CIRC_PUMP_PIN);
+  temp["Fan_Extractor"] = digitalRead(FAN_1_PIN);
+  temp["Fan_Tent"] = digitalRead(FAN_2_PIN);
+  temp["Light"] = digitalRead(LIGHT_1_PIN);
   temp["WiFi_Module"] = WiFi.status();
   temp["IP_Address"] = WiFi.localIP();
   return temp;
