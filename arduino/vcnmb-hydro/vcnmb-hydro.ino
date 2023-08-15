@@ -93,7 +93,6 @@ void loop() {
             "HTTP/1.1 200 OK\r\n"
             "Content-Type: application/json\r\n"
             "Connection: close\r\n"  // the connection will be closed after completion of the response
-            "Refresh: 20\r\n"        // refresh the page automatically every 20 sec
             "\r\n");
 
           if (RequestHeader.indexOf("GET /hardware.json") >= 0) {
