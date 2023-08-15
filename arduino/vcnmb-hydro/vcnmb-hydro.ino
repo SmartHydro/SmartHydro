@@ -18,9 +18,9 @@
 #define LIGHT_1_PIN 12
 #define TEMP_HUMID_SENS_PIN 50
 #define FLOW_SENS_PIN 52
-#define AMB_LIGHT_SENS_PIN A0
-#define PH_SENS_PIN A1
-#define EC_SENS_PIN A2
+#define AMB_LIGHT_SENS_PIN A2
+#define PH_SENS_PIN A3
+#define EC_SENS_PIN A4
 #define PH_CAL 0.00
 #define FLOW_CAL 0.00
 #define EC_CAL 0.00
@@ -102,6 +102,13 @@ void loop() {
         Serial.print(c);
         RequestHeader += c;
         if (c == '\n') {
+ WebClient.print(
+            "HTTP/1.1 200 OK\r\n"
+            "Content-Type: application/json\r\n"
+            "Connection: close\r\n"  // the connection will be closed after completion of the response
+            "Refresh: 20\r\n"        // refresh the page automatically every 20 sec
+            "\r\n");  
+
           if (RequestHeader.indexOf("GET /hardware.json") >= 0) {
             serializeJsonPretty(HardwareToJson(), WebClient);
             break;
