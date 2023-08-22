@@ -74,7 +74,7 @@ void setup() {
   }
   // default on
   TogglePin(LIGHT_1_PIN);
-  TogglePin(FAN_1_PIN);
+  TogglePin(FAN_2_PIN);
   TogglePin(CIRC_PUMP_PIN);
 }
 
@@ -105,42 +105,42 @@ void loop() {
           }
           if (RequestHeader.indexOf("GET /ph_in.json") >= 0) {
             TogglePin(PH_IN_PIN);
-            serializeJsonPretty(HardwareToJson(), WebClient);
+            //serializeJsonPretty(HardwareToJson(), WebClient);
             break;
           }
           if (RequestHeader.indexOf("GET /ph_out.json") >= 0) {
             TogglePin(PH_OUT_PIN);
-            serializeJsonPretty(HardwareToJson(), WebClient);
+            //serializeJsonPretty(HardwareToJson(), WebClient);
             break;
           }
           if (RequestHeader.indexOf("GET /circ_pump.json") >= 0) {
             TogglePin(CIRC_PUMP_PIN);
-            serializeJsonPretty(HardwareToJson(), WebClient);
+            //serializeJsonPretty(HardwareToJson(), WebClient);
             break;
           }
           if (RequestHeader.indexOf("GET /ec_in.json") >= 0) {
             TogglePin(EC_IN_PIN);
-            serializeJsonPretty(HardwareToJson(), WebClient);
+            //serializeJsonPretty(HardwareToJson(), WebClient);
             break;
           }
           if (RequestHeader.indexOf("GET /ec_out.json") >= 0) {
             TogglePin(EC_OUT_PIN);
-            serializeJsonPretty(HardwareToJson(), WebClient);
+            //serializeJsonPretty(HardwareToJson(), WebClient);
             break;
           }
           if (RequestHeader.indexOf("GET /fan_circ.json") >= 0) {
             TogglePin(FAN_1_PIN);
-            serializeJsonPretty(HardwareToJson(), WebClient);
+            //serializeJsonPretty(HardwareToJson(), WebClient);
             break;
           }
           if (RequestHeader.indexOf("GET /fan_extractor.json") >= 0) {
             TogglePin(FAN_2_PIN);
-            serializeJsonPretty(HardwareToJson(), WebClient);
+            //serializeJsonPretty(HardwareToJson(), WebClient);
             break;
           }
           if (RequestHeader.indexOf("GET /light.json") >= 0) {
             TogglePin(LIGHT_1_PIN);
-            serializeJsonPretty(HardwareToJson(), WebClient);
+            //serializeJsonPretty(HardwareToJson(), WebClient);
             break;
           }
         }
@@ -170,8 +170,6 @@ DynamicJsonDocument HardwareToJson() {
   temp["Fan_Extractor"] = digitalRead(FAN_1_PIN);
   temp["Fan_Tent"] = digitalRead(FAN_2_PIN);
   temp["Light"] = digitalRead(LIGHT_1_PIN);
-  temp["WiFi_Module"] = WiFi.status();
-  temp["IP_Address"] = WiFi.localIP();
   return temp;
 }
 
