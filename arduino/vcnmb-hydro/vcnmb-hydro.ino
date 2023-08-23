@@ -11,11 +11,11 @@
 #define EC_OUT_PIN 5
 #define EC_IN_PIN 6
 #define PH_OUT_PIN 7
-#define PH_IN_PIN 8
+#define PH_IN_PIN 12
 #define CIRC_PUMP_PIN 9
 #define FAN_1_PIN 10
 #define FAN_2_PIN 11
-#define LIGHT_1_PIN 12
+#define LIGHT_1_PIN 8
 #define TEMP_HUMID_SENS_PIN 50
 #define FLOW_SENS_PIN 52
 #define AMB_LIGHT_SENS_PIN A2
@@ -129,12 +129,12 @@ void loop() {
             break;
           }
           if (RequestHeader.indexOf("GET /fan_circ.json") >= 0) {
-            TogglePin(FAN_1_PIN);
+            TogglePin(FAN_2_PIN);
             //serializeJsonPretty(HardwareToJson(), WebClient);
             break;
           }
           if (RequestHeader.indexOf("GET /fan_extractor.json") >= 0) {
-            TogglePin(FAN_2_PIN);
+            TogglePin(FAN_1_PIN);
             //serializeJsonPretty(HardwareToJson(), WebClient);
             break;
           }
