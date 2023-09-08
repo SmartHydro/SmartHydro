@@ -79,77 +79,54 @@ void setup() {
 }
 
 void loop() {
-  WiFiEspClient WebClient = WebServer.available();
-  String RequestHeader = "";
-  if (WebClient) {
-    Serial.println("client connection started");
-    while (WebClient.connected()) {
-      if (WebClient.available()) {
-        char c = WebClient.read();
-        Serial.print(c);
-        RequestHeader += c;
-        if (c == '\n') {
-          WebClient.print(
-            "HTTP/1.1 200 OK\r\n"
-            "Content-Type: application/json\r\n"
-            "Connection: close\r\n"  // the connection will be closed after completion of the response
-            "\r\n");
+  WiFiEspClient client = WebServer.available();
+  if (!client) { return; }
+  client.setTimeout(5000);
+  String req = client.readStringUntil('\r');
+  Serial.println(F("request: "));
+  Serial.println(req);
 
-          if (RequestHeader.indexOf("GET /hardware.json") >= 0) {
-            serializeJsonPretty(HardwareToJson(), WebClient);
-            break;
-          }
-          if (RequestHeader.indexOf("GET /sensor.json") >= 0) {
-            serializeJsonPretty(SensorToJson(), WebClient);
-            break;
-          }
-          if (RequestHeader.indexOf("GET /ph_in.json") >= 0) {
-            TogglePin(PH_IN_PIN);
-            //serializeJsonPretty(HardwareToJson(), WebClient);
-            break;
-          }
-          if (RequestHeader.indexOf("GET /ph_out.json") >= 0) {
-            TogglePin(PH_OUT_PIN);
-            //serializeJsonPretty(HardwareToJson(), WebClient);
-            break;
-          }
-          if (RequestHeader.indexOf("GET /circ_pump.json") >= 0) {
-            TogglePin(CIRC_PUMP_PIN);
-            //serializeJsonPretty(HardwareToJson(), WebClient);
-            break;
-          }
-          if (RequestHeader.indexOf("GET /ec_in.json") >= 0) {
-            TogglePin(EC_IN_PIN);
-            //serializeJsonPretty(HardwareToJson(), WebClient);
-            break;
-          }
-          if (RequestHeader.indexOf("GET /ec_out.json") >= 0) {
-            TogglePin(EC_OUT_PIN);
-            //serializeJsonPretty(HardwareToJson(), WebClient);
-            break;
-          }
-          if (RequestHeader.indexOf("GET /fan_circ.json") >= 0) {
-            TogglePin(FAN_2_PIN);
-            //serializeJsonPretty(HardwareToJson(), WebClient);
-            break;
-          }
-          if (RequestHeader.indexOf("GET /fan_extractor.json") >= 0) {
-            TogglePin(FAN_1_PIN);
-            //serializeJsonPretty(HardwareToJson(), WebClient);
-            break;
-          }
-          if (RequestHeader.indexOf("GET /light.json") >= 0) {
-            TogglePin(LIGHT_1_PIN);
-            //serializeJsonPretty(HardwareToJson(), WebClient);
-            break;
-          }
-        }
-      }
-    }
-    WebClient.stop();
-    RequestHeader = "";
-    Serial.println("client connection terminated");
+  while (client.available()) {
+    client.read();
   }
+  client.print(
+    "HTTP/1.1 200 OK\r\n"
+    "Content-Type: application/json\r\n"
+    "Connection: close\r\n"
+    "\r\n");
+
+  if (req.indexOf("GET /hardware.json") >= 0) {
+    serializeJsonPretty(HardwareToJson(), client);
+  }
+  if (req.indexOf("GET /sensor.json") >= 0) {
+    serializeJsonPretty(SensorToJson(), client);
+  }
+  if (req.indexOf("GET /ph_in.json") >= 0) {
+    TogglePin(PH_IN_PIN);
+  }
+  if (req.indexOf("GET /ph_out.json") >= 0) {
+    TogglePin(PH_OUT_PIN);
+  }
+  if (req.indexOf("GET /circ_pump.json") >= 0) {
+    TogglePin(CIRC_PUMP_PIN);
+  }
+  if (req.indexOf("GET /ec_in.json") >= 0) {
+    TogglePin(EC_IN_PIN);
+  }
+  if (req.indexOf("GET /ec_out.json") >= 0) {
+    TogglePin(EC_OUT_PIN);
+  }
+  if (req.indexOf("GET /fan_circ.json") >= 0) {
+    TogglePin(FAN_2_PIN);
+  }
+  if (req.indexOf("GET /fan_extractor.json") >= 0) {
+    TogglePin(FAN_1_PIN);
+  }
+  if (req.indexOf("GET /light.json") >= 0) {
+    TogglePin(LIGHT_1_PIN);
+  }
+  client.stop();
+  Serial.println(F("Disconnecting from client"));
 }
 
 void Detect_Rising_Edge_Flow() {
