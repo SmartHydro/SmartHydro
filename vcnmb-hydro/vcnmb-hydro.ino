@@ -2,7 +2,6 @@
 #include <WiFiEspClient.h>
 #include <WiFiEspServer.h>
 #include <DHTesp.h>
-#include <ArduinoJson.h>
 #include <DFRobot_EC10.h>
 #include <DFRobot_PH.h>
 
@@ -39,7 +38,7 @@ void setup() {
 
   // YF-B6 Flow Sensor
   pinMode(FLOW_SENS_PIN, INPUT);
-  attachInterrupt(0, Detect_Rising_Edge_Flow, FALLING);
+  attachInterrupt(0, Detect_Rising_Edge_Flow, RISING);
   Current_Time = millis();
   Loop_Time = Current_Time;
 
@@ -62,7 +61,6 @@ void setup() {
       ;
   }
   IPAddress SysIP(192, 168, 1, 10);
-
   WiFi.configAP(SysIP);
   WiFi.beginAP(AP_SSID, 13, AP_PASS, ENC_TYPE_WPA2_PSK, false);
   WebServer.begin();
@@ -96,10 +94,10 @@ void loop() {
     "\r\n");
 
   if (req.indexOf("GET /hardware.json") >= 0) {
-    serializeJsonPretty(HardwareToJson(), client);
+    client.println(HardwareToJson());
   }
   if (req.indexOf("GET /sensor.json") >= 0) {
-    serializeJsonPretty(SensorToJson(), client);
+    client.println(SensorToJson());
   }
   if (req.indexOf("GET /ph_in.json") >= 0) {
     TogglePin(PH_IN_PIN);
@@ -129,45 +127,44 @@ void loop() {
   Serial.println(F("Disconnecting from client"));
 }
 
+String HardwareToJson() {
+  String returnString = "[\n{\n";
+  returnString += " \"pH_In_Pump\" : \"" + String(digitalRead(PH_IN_PIN)) + "\",\n";
+  returnString += " \"pH_Out_Pump\" : \"" + String(digitalRead(PH_OUT_PIN)) + "\",\n";
+  returnString += " \"EC_In_Pump\" : \"" + String(digitalRead(EC_IN_PIN)) + "\",\n";
+  returnString += " \"EC_Out_Pump\" : \"" + String(digitalRead(EC_OUT_PIN)) + "\",\n";
+  returnString += " \"Circulation_Pump\" : \"" + String(digitalRead(CIRC_PUMP_PIN)) + "\",\n";
+  returnString += " \"Fan_Extractor\" : \"" + String(digitalRead(FAN_1_PIN)) + "\",\n";
+  returnString += " \"Fan_Tent\" : \"" + String(digitalRead(FAN_2_PIN)) + "\",\n";
+  returnString += " \"Light\" : \"" + String(digitalRead(LIGHT_1_PIN)) + "\"\n";
+  returnString += "}\n]\n";
+  return returnString;
+}
+
+String SensorToJson() {
+  String returnString = "[\n{\n";
+  TempAndHumidity measurement = TempHumid.getTempAndHumidity();
+  returnString += " \"Temperature\" : \"" + String(measurement.temperature) + "\",\n";
+  returnString += " \"Humidity\" : \"" + String(measurement.humidity) + "\",\n";
+  returnString += " \"LightLevel\" : \"" + String(analogRead(AMB_LIGHT_SENS_PIN)) + "\",\n";
+  Current_Time = millis();
+  if (Current_Time >= (Loop_Time + 1000)) {
+    returnString += " \"FlowRate\" : \"" + String(((Pulse_Count * 60 / 7.5) + FLOW_CAL)) + "\",\n";
+  }
+  float PH_VOLT = analogRead(PH_SENS_PIN) / 1024.0 * 5000;
+  returnString += " \"pH\" : \"" + String(PH.readPH(PH_VOLT, measurement.temperature)) + "\",\n";
+  PH.calibration(PH_VOLT, measurement.temperature);
+  float EC_VOLT = analogRead(EC_SENS_PIN) / 1024.0 * 5000;
+  returnString += " \"EC\" : \"" + String(EC10.readEC(EC_VOLT, measurement.temperature)) + "\"\n";
+  EC10.calibration(EC_VOLT, measurement.temperature);
+  returnString += "}\n]\n";
+  return returnString;
+}
+
 void Detect_Rising_Edge_Flow() {
   Pulse_Count++;
 }
 
 void TogglePin(int Pin) {
   digitalWrite(Pin, !digitalRead(Pin));
-}
-
-DynamicJsonDocument HardwareToJson() {
-  DynamicJsonDocument temp(128);
-  temp["pH_In_Pump"] = digitalRead(PH_IN_PIN);
-  temp["pH_Out_Pump"] = digitalRead(PH_OUT_PIN);
-  temp["EC_In_Pump"] = digitalRead(EC_IN_PIN);
-  temp["EC_Out_Pump"] = digitalRead(EC_OUT_PIN);
-  temp["Circulation_Pump"] = digitalRead(CIRC_PUMP_PIN);
-  temp["Fan_Extractor"] = digitalRead(FAN_1_PIN);
-  temp["Fan_Tent"] = digitalRead(FAN_2_PIN);
-  temp["Light"] = digitalRead(LIGHT_1_PIN);
-  return temp;
-}
-
-DynamicJsonDocument SensorToJson() {
-  DynamicJsonDocument temp(128);
-  TempAndHumidity measurement = TempHumid.getTempAndHumidity();
-  temp["Temperature"] = measurement.temperature, 1;
-  temp["Humidity"] = measurement.humidity, 0;
-  temp["LightLevel"] = analogRead(AMB_LIGHT_SENS_PIN);
-  Current_Time = millis();
-  if (Current_Time >= (Loop_Time + 1000)) {
-    temp["FlowRate"] = (Pulse_Count * 60 / 7.5) + FLOW_CAL, 2;
-  }
-  float PH_VOLT = analogRead(PH_SENS_PIN) / 1024.0 * 5000;
-  float PH_LEVEL = PH.readPH(PH_VOLT, measurement.temperature);
-  temp["pH"] = PH_LEVEL;
-  float EC_VOLT = analogRead(EC_SENS_PIN) / 1024.0 * 5000;
-  float EC_TEMP = measurement.temperature;
-  float EC_VALUE = EC10.readEC(EC_VOLT, EC_TEMP);
-  temp["EC"] = EC_VALUE;
-  EC10.calibration(EC_VOLT, EC_TEMP);
-  PH.calibration(PH_VOLT, measurement.temperature);
-  return temp;
 }
