@@ -38,7 +38,7 @@ DFRobot_PH PH;
 volatile int FlowSensorPulseCount = 0;
 unsigned long CurrentTime, PreviousTime;
 bool AI_Flag;
-String TemperatureAI = "", HumidityAI = "", PH_AI = "", EC_AI = "";
+String TemperatureAI = "Temperature: NaN - NaN", HumidityAI = "Humidity: NaN - NaN", PH_AI = "pH: NaN - NaN", EC_AI = "EC: NaN - NaN";
 
 void setup() {
   // USB Serial Connection
@@ -115,10 +115,10 @@ void loop() {
   }
   if (ClientRequest.indexOf("GET /toggleAI") >= 0) {
     AI_Flag = !AI_Flag;
-    TemperatureAI = "Temperature: NaN";
-    HumidityAI = "Humidity: NaN";
-    EC_AI = "EC: NaN";
-    PH_AI = "PH: NaN";
+    TemperatureAI = "Temperature: NaN - NaN";
+    HumidityAI = "Humidity: NaN - NaN";
+    EC_AI = "EC: NaN - NaN";
+    PH_AI = "pH: NaN - NaN";
   }
   if (ClientRequest.indexOf("GET /ph_in") >= 0) {
     TogglePin(PH_UP_PUMP_PIN);
@@ -223,29 +223,31 @@ float GetFlowRateReading() {
 }
 
 String PredictTemperature() {
+  // gets the current prediction and adjusts the light accordingly
+  // HIGH is OFF, LOW is ON
   float Temperature = TempHumid.getTemperature();
   int Prediction = ForestTemperature.predict(&Temperature);
   int LightStatus = digitalRead(LIGHT_PIN);
   switch (Prediction) {
     case 0:  // HIGH
-      if (LightStatus == 1) {
-        digitalWrite(LIGHT_PIN, LOW);
+      if (LightStatus == 0) {
+        digitalWrite(LIGHT_PIN, HIGH);
         return "Temperature: HIGH - Light Off";
       } else {
         return "Temperature: HIGH - Light Off";
       }
 
     case 1:  // LOW
-      if (LightStatus == 0) {
-        digitalWrite(LIGHT_PIN, HIGH);
+      if (LightStatus == 1) {
+        digitalWrite(LIGHT_PIN, LOW);
         return "Temperature: LOW - Light On";
       } else {
         return "Temperature: LOW - Light On";
       }
 
     case 2:  // OK
-      if (LightStatus == 1) {
-        digitalWrite(LIGHT_PIN, LOW);
+      if (LightStatus == 0) {
+        digitalWrite(LIGHT_PIN, HIGH);
         return "Temperature: OK - Light Off";
       } else {
         return "Temperature: OK - Light Off";
@@ -254,21 +256,23 @@ String PredictTemperature() {
 }
 
 String PredictHumidity() {
+  // gets the current prediction and adjusts the extractor accordingly
+  // HIGH is OFF, LOW is ON
   float Humidity = TempHumid.getHumidity();
   int Prediction = ForestHumidity.predict(&Humidity);
   int FanStatus = digitalRead(EXTRACTOR_FAN_PIN);
   switch (Prediction) {
     case 0:  // HIGH
-      if (FanStatus == 0) {
-        digitalWrite(EXTRACTOR_FAN_PIN, HIGH);
+      if (FanStatus == 1) {
+        digitalWrite(EXTRACTOR_FAN_PIN, LOW);
         return "Humidity: HIGH - Extractor On";
       } else {
         return "Humidity: HIGH - Extractor On";
       }
 
     case 1:  // LOW
-      if (FanStatus == 1) {
-        digitalWrite(EXTRACTOR_FAN_PIN, LOW);
+      if (FanStatus == 0) {
+        digitalWrite(EXTRACTOR_FAN_PIN, HIGH);
         return "Humidity: LOW - Extractor Off";
       } else {
         return "Humidity: LOW - Extractor Off";
@@ -277,7 +281,7 @@ String PredictHumidity() {
 
     case 2:  // OK
       if (FanStatus == 0) {
-        digitalWrite(EXTRACTOR_FAN_PIN, LOW);
+        digitalWrite(EXTRACTOR_FAN_PIN, HIGH);
         return "Humidity: OK - Extractor Off";
       } else {
         return "Humidity: OK - Extractor Off";
@@ -286,6 +290,8 @@ String PredictHumidity() {
 }
 
 String PredictEC() {
+  // gets the current prediction and adjusts the pumps accordingly
+  // HIGH is OFF, LOW is ON
   float Temperature = TempHumid.getTemperature();
   float EC = GetECReading(Temperature);
   int Prediction = ForestEC.predict(&EC);
@@ -293,27 +299,27 @@ String PredictEC() {
   int EC_Down_Status = digitalRead(EC_DOWN_PUMP_PIN);
   switch (Prediction) {
     case 0:  // HIGH
-      if (EC_Down_Status == 0) {
-        digitalWrite(EC_UP_PUMP_PIN, LOW);
-        digitalWrite(EC_DOWN_PUMP_PIN, HIGH);
+      if (EC_Down_Status == 1) {
+        digitalWrite(EC_UP_PUMP_PIN, HIGH);
+        digitalWrite(EC_DOWN_PUMP_PIN, LOW);
         return "EC: HIGH - Adding Water";
       } else {
         return "EC: HIGH - Adding Water";
       }
 
     case 1:  // LOW
-      if (EC_Up_Status == 0) {
-        digitalWrite(EC_DOWN_PUMP_PIN, LOW);
-        digitalWrite(EC_UP_PUMP_PIN, HIGH);
+      if (EC_Up_Status == 1) {
+        digitalWrite(EC_DOWN_PUMP_PIN, HIGH);
+        digitalWrite(EC_UP_PUMP_PIN, LOW);
         return "EC: LOW - Adding Nutrient Solution";
       } else {
         return "EC: LOW - Adding Nutrient Solution";
       }
 
     case 2:  // OK
-      if (EC_Up_Status == 1 || EC_Down_Status) {
-        digitalWrite(EC_DOWN_PUMP_PIN, LOW);
-        digitalWrite(EC_UP_PUMP_PIN, LOW);
+      if (EC_Up_Status == 0 || EC_Down_Status == 0) {
+        digitalWrite(EC_DOWN_PUMP_PIN, HIGH);
+        digitalWrite(EC_UP_PUMP_PIN, HIGH);
         return "EC: OK - All Pumps Off";
       } else {
         return "EC: OK - All Pumps Off";
@@ -322,6 +328,8 @@ String PredictEC() {
 }
 
 String PredictPH() {
+  // gets the current prediction and adjusts the pumps accordingly
+  // HIGH is OFF, LOW is ON
   float Temperature = TempHumid.getTemperature();
   float PH = GetPHReading(Temperature);
   int Prediction = ForestpH.predict(&PH);
@@ -329,27 +337,27 @@ String PredictPH() {
   int PH_Down_Status = digitalRead(PH_DOWN_PUMP_PIN);
   switch (Prediction) {
     case 0:  // HIGH
-      if (PH_Down_Status == 0) {
-        digitalWrite(PH_UP_PUMP_PIN, LOW);
-        digitalWrite(PH_DOWN_PUMP_PIN, HIGH);
+      if (PH_Down_Status == 1) {
+        digitalWrite(PH_UP_PUMP_PIN, HIGH);
+        digitalWrite(PH_DOWN_PUMP_PIN, LOW);
         return "PH: HIGH - Adding Solution";
       } else {
         return "PH: HIGH - Adding Solution";
       }
 
     case 1:  // LOW
-      if (PH_Up_Status == 0) {
-        digitalWrite(PH_DOWN_PUMP_PIN, LOW);
-        digitalWrite(PH_UP_PUMP_PIN, HIGH);
+      if (PH_Up_Status == 1) {
+        digitalWrite(PH_DOWN_PUMP_PIN, HIGH);
+        digitalWrite(PH_UP_PUMP_PIN, LOW);
         return "PH: LOW - Adding Solution";
       } else {
         return "PH: LOW - Adding Solution";
       }
 
     case 2:  // OK
-      if (PH_Up_Status == 1 || PH_Down_Status == 1) {
-        digitalWrite(PH_DOWN_PUMP_PIN, LOW);
-        digitalWrite(PH_UP_PUMP_PIN, LOW);
+      if (PH_Up_Status == 0 || PH_Down_Status == 0) {
+        digitalWrite(PH_DOWN_PUMP_PIN, HIGH);
+        digitalWrite(PH_UP_PUMP_PIN, HIGH);
         return "PH: OK - All Pumps Off";
       } else {
         return "PH: OK - All Pumps Off";
