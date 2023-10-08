@@ -91,8 +91,8 @@ void loop() {
   if (AI_Flag) {
     TemperatureAI = PredictTemperature();
     HumidityAI = PredictHumidity();
-    EC_AI = PredictEC();
-    PH_AI = PredictPH();
+    // EC_AI = PredictEC();
+    // PH_AI = PredictPH();
   }
 
   WiFiEspClient WebClient = WebServer.available();
@@ -147,6 +147,8 @@ void loop() {
   SendClientResponse(WebClient, Payload);
   WebClient.stop();
   Serial.println("Disconnecting from WiFi Client.");
+
+  delay (3600);
 }
 
 void SendClientResponse(WiFiEspClient WebClient, String Payload) {
