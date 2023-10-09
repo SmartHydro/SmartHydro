@@ -210,6 +210,7 @@ float GetPHReading(float Temperature) {
   // calculate current voltage and return PH reading
   float PH_Voltage = (float)analogRead(PH_SENS_PIN) / 1024.0 * 5000.0;
   return PH.readPH(PH_Voltage, Temperature);
+
 }
 
 float GetFlowRateReading() {
@@ -295,7 +296,15 @@ String PredictEC() {
   // gets the current prediction and adjusts the pumps accordingly
   // HIGH is OFF, LOW is ON
   float Temperature = TempHumid.getTemperature();
-  float EC = GetECReading(Temperature);
+  float EC = 0, ec[5], sum =0;
+  int size = 1;
+  for ( int i = 0; i < 6; i++)
+      {
+        ec[i] = GetPHReading(Temperature);
+        sum += ec[i];
+      }
+  size = sizeof(ec)/sizeof(ec[0]);
+  EC = (sum / size);
   int Prediction = ForestEC.predict(&EC);
   int EC_Up_Status = digitalRead(EC_UP_PUMP_PIN);
   int EC_Down_Status = digitalRead(EC_DOWN_PUMP_PIN);
@@ -333,7 +342,16 @@ String PredictPH() {
   // gets the current prediction and adjusts the pumps accordingly
   // HIGH is OFF, LOW is ON
   float Temperature = TempHumid.getTemperature();
-  float PH = GetPHReading(Temperature);
+  float PH = 0, ph[5], sum =0;
+  int size = 1;
+  for ( int i = 0; i < 6; i++)
+      {
+        ph[i] = GetPHReading(Temperature);
+        sum += ph[i];
+      }
+  size = sizeof(ph)/sizeof(ph[0]);
+  PH = (sum / size);
+   
   int Prediction = ForestpH.predict(&PH);
   int PH_Up_Status = digitalRead(PH_UP_PUMP_PIN);
   int PH_Down_Status = digitalRead(PH_DOWN_PUMP_PIN);
