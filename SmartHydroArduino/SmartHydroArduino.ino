@@ -292,7 +292,7 @@ void estimateFactors() {
   estimatePH();
   estimateTemperature();
   estimateHumidity();
-  estimateEC( );
+  estimateEC();
 }
 
 void incrementPulseCounter() {
