@@ -1,9 +1,11 @@
-#include <WiFiEsp.h>
+ #include <WiFiEsp.h>
 #include <WiFiEspClient.h>
 #include <WiFiEspServer.h>
 #include <DHTesp.h>
 #include <DFRobot_EC10.h>
 #include <DFRobot_PH.h>
+#include <Chrono.h>
+
 
 // including the AI models
 #include "EC.h"
@@ -30,6 +32,8 @@ Eloquent::ML::Port::RandomForestTemperature ForestTemperature;
 #define AMB_LIGHT_SENS_PIN A2
 #define PH_SENS_PIN A3
 #define EC_SENS_PIN A4
+Chrono myTimer;
+
 
 WiFiEspServer WebServer(80);
 DHTesp TempHumid;
@@ -88,11 +92,12 @@ void setup() {
 }
 
 void loop() {
-  if (AI_Flag) {
+  if (AI_Flag && myTimer.hasPassed(5000)) {
     TemperatureAI = PredictTemperature();
     HumidityAI = PredictHumidity();
     EC_AI = PredictEC();
     PH_AI = PredictPH();
+    myTimer.restart();
   }
 
   WiFiEspClient WebClient = WebServer.available();
@@ -105,7 +110,7 @@ void loop() {
     WebClient.read();
   }
   if (ClientRequest.indexOf("GET /hardware") >= 0) {
-    Payload = GetHardwareStatus();
+    Payload = GetHardwareStatus();     
   }
   if (ClientRequest.indexOf("GET /sensor") >= 0) {
     Payload = GetSensorReadings();
@@ -113,35 +118,35 @@ void loop() {
   if (ClientRequest.indexOf("GET /predictions") >= 0) {
     Payload = GetModelPredictions();
   }
-  if (ClientRequest.indexOf("GET /toggleAI") >= 0) {
+  if (ClientRequest.indexOf("POST /toggleAI") >= 0) {
     AI_Flag = !AI_Flag;
     TemperatureAI = "Temperature: NaN - NaN";
     HumidityAI = "Humidity: NaN - NaN";
     EC_AI = "EC: NaN - NaN";
     PH_AI = "pH: NaN - NaN";
   }
-  if (ClientRequest.indexOf("GET /ph_in") >= 0) {
+  if (ClientRequest.indexOf("POST /ph_in") >= 0) {
     TogglePin(PH_UP_PUMP_PIN);
   }
-  if (ClientRequest.indexOf("GET /ph_out") >= 0) {
+  if (ClientRequest.indexOf("POST /ph_out") >= 0) {
     TogglePin(PH_DOWN_PUMP_PIN);
   }
-  if (ClientRequest.indexOf("GET /circ_pump") >= 0) {
+  if (ClientRequest.indexOf("POST /circ_pump") >= 0) {
     TogglePin(CIRCULATION_PUMP_PIN);
   }
-  if (ClientRequest.indexOf("GET /ec_in") >= 0) {
+  if (ClientRequest.indexOf("POST /ec_in") >= 0) {
     TogglePin(EC_UP_PUMP_PIN);
   }
-  if (ClientRequest.indexOf("GET /ec_out") >= 0) {
+  if (ClientRequest.indexOf("POST /ec_out") >= 0) {
     TogglePin(EC_DOWN_PUMP_PIN);
   }
-  if (ClientRequest.indexOf("GET /fan_circ") >= 0) {
+  if (ClientRequest.indexOf("POST /fan_circ") >= 0) {
     TogglePin(TENT_FAN_PIN);
   }
-  if (ClientRequest.indexOf("GET /fan_extractor") >= 0) {
+  if (ClientRequest.indexOf("POST /fan_extractor") >= 0) {
     TogglePin(EXTRACTOR_FAN_PIN);
   }
-  if (ClientRequest.indexOf("GET /light") >= 0) {
+  if (ClientRequest.indexOf("POST /light") >= 0) {
     TogglePin(LIGHT_PIN);
   }
   SendClientResponse(WebClient, Payload);
@@ -246,11 +251,11 @@ String PredictTemperature() {
       }
 
     case 2:  // OK
-      if (LightStatus == 0) {
-        digitalWrite(LIGHT_PIN, HIGH);
-        return "Temperature: OK - Light Off";
+      if (LightStatus == 1) {
+        digitalWrite(LIGHT_PIN, LOW);
+        return "Temperature: OK - Light On";
       } else {
-        return "Temperature: OK - Light Off";
+        return "Temperature: OK - Light On";
       }
   }
 }
@@ -372,5 +377,6 @@ void PulseCounterFlowSensor() {
 
 void TogglePin(int PinToToggle) {
   // used to toggle a pins state to the opposite of what it currently is
+  pinMode(PinToToggle, OUTPUT);
   digitalWrite(PinToToggle, !digitalRead(PinToToggle));
 }
