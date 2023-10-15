@@ -2,7 +2,7 @@
 #include <WiFiEspClient.h>
 #include <WiFiEspServer.h>
 #include <DHTesp.h>
-#include <DFRobot_EC10.h>
+#include <DFRobot_EC.h>
 #include <DFRobot_PH.h>
 #include <Chrono.h>
 
@@ -32,16 +32,18 @@ Eloquent::ML::Port::RandomForestTemperature ForestTemperature;
 #define AMB_LIGHT_SENS_PIN A2
 #define PH_SENS_PIN A3
 #define EC_SENS_PIN A4
+#define Jumper_Pin 51
 Chrono myTimer;
 
 
 WiFiEspServer WebServer(80);
 DHTesp TempHumid;
-DFRobot_EC10 EC10;
+DFRobot_EC EC10;
 DFRobot_PH PH;
 volatile int FlowSensorPulseCount = 0;
 unsigned long CurrentTime, PreviousTime;
 bool AI_Flag;
+bool jumperState = 0;
 String TemperatureAI = "Temperature: NaN - NaN", HumidityAI = "Humidity: NaN - NaN", PH_AI = "pH: NaN - NaN", EC_AI = "EC: NaN - NaN";
 
 void setup() {
@@ -60,12 +62,24 @@ void setup() {
   // Ambient Light Sensor
   pinMode(AMB_LIGHT_SENS_PIN, INPUT);
 
+  // Default ai on/off jumper pin - ICSP pin 4
+  pinMode(Jumper_Pin, INPUT_PULLUP);
+  // Checks if jumber is connected 
+  jumperState = digitalRead(Jumper_Pin);
+  if (jumperState == LOW) {
+    Serial.println(" AI CONNECTED");
+    AI_Flag = true;
+
+  } else {
+    Serial.println(" AI NOT CONNECTED");
+    AI_Flag = false;
+  }
   // SEN0161 pH Sensor
   pinMode(PH_SENS_PIN, INPUT);
   PH.begin();
 
   // EC10 Current Sensor
-  pinMode(EC_SENS_PIN, INPUT);
+ // pinMode(EC_SENS_PIN, INPUT);
 
   // ESP module
   Serial1.begin(115200);
