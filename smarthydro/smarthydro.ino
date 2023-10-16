@@ -1,4 +1,4 @@
- #include <WiFiEsp.h>
+#include <WiFiEsp.h>
 #include <WiFiEspClient.h>
 #include <WiFiEspServer.h>
 #include <DHTesp.h>
@@ -64,7 +64,7 @@ void setup() {
 
   // Default ai on/off jumper pin - ICSP pin 4
   pinMode(Jumper_Pin, INPUT_PULLUP);
-  // Checks if jumber is connected 
+  // Checks if jumber is connected
   jumperState = digitalRead(Jumper_Pin);
   if (jumperState == LOW) {
     Serial.println(" AI CONNECTED");
@@ -79,8 +79,8 @@ void setup() {
   PH.begin();
 
   // EC10 Current Sensor
- // pinMode(EC_SENS_PIN, INPUT);
-
+  // pinMode(EC_SENS_PIN, INPUT);
+  EC10.begin();
   // ESP module
   Serial1.begin(115200);
   WiFi.init(&Serial1);
@@ -124,7 +124,7 @@ void loop() {
     WebClient.read();
   }
   if (ClientRequest.indexOf("GET /hardware") >= 0) {
-    Payload = GetHardwareStatus();     
+    Payload = GetHardwareStatus();
   }
   if (ClientRequest.indexOf("GET /sensor") >= 0) {
     Payload = GetSensorReadings();
@@ -220,12 +220,14 @@ int GetLightReading() {
 float GetECReading(float Temperature) {
   // calculate current voltage and return EC reading
   float EC_Voltage = (float)analogRead(EC_SENS_PIN) / 1024.0 * 5000.0;
+  EC10.calibration(EC_Voltage, Temperature);
   return EC10.readEC(EC_Voltage, Temperature);
 }
 
 float GetPHReading(float Temperature) {
   // calculate current voltage and return PH reading
   float PH_Voltage = (float)analogRead(PH_SENS_PIN) / 1024.0 * 5000.0;
+  PH.calibration(PH_Voltage, Temperature);
   return PH.readPH(PH_Voltage, Temperature);
 }
 
