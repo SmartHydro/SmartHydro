@@ -33,7 +33,7 @@ Eloquent::ML::Port::RandomForestTemperature ForestTemperature;
 #define PH_SENS_PIN A3
 #define EC_SENS_PIN A4
 #define Jumper_Pin 51
-Chrono myTimer, DayTimer, CorrectionTimer, ReadingTimer;
+Chrono DayTimer, CorrectionTimer, ReadingTimer;
 
 
 WiFiEspServer WebServer(80);
