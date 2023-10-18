@@ -33,7 +33,7 @@ Eloquent::ML::Port::RandomForestTemperature ForestTemperature;
 #define PH_SENS_PIN A3
 #define EC_SENS_PIN A4
 #define Jumper_Pin 51
-Chrono myTimer;
+Chrono myTimer, DayTimer, CorrectionTimer, ReadingTimer;
 
 
 WiFiEspServer WebServer(80);
@@ -47,6 +47,8 @@ bool jumperState = 0;
 String TemperatureAI = "Temperature: NaN - NaN", HumidityAI = "Humidity: NaN - NaN", PH_AI = "pH: NaN - NaN", EC_AI = "EC: NaN - NaN";
 
 void setup() {
+  ReadingTimer.stop();
+  ReadingTimer.restart();
   // USB Serial Connection
   Serial.begin(115200);
 
@@ -106,13 +108,45 @@ void setup() {
 }
 
 void loop() {
-  if (AI_Flag && myTimer.hasPassed(5000)) {
+  boolean sleepyTime;
+  if (!DayTimer.hasPassed(24 * 360 * 1000)) {
+    if (!DayTimer.hasPassed(16*360*1000)) {
+      sleepyTime = false;
+    } else {
+      sleepyTime = true;
+    }
+  } else {
+    DayTimer.restart();
+  }
+
+  if (EC_AI.indexOf("OK") > 0 && PH_AI.indexOf("OK")) {
+    ReadingTimer.start();
+  }
+
+  // methods to manage the plant circadian rythm
+  boolean TimeToRead;
+
+
+  if (!sleepyTime && AI_Flag) {
     TemperatureAI = PredictTemperature();
     HumidityAI = PredictHumidity();
-    EC_AI = PredictEC();
-    PH_AI = PredictPH();
-    myTimer.restart();
+    if (ReadingTimer.elapsed() != 0 && ReadingTimer.hasPassed(30 * 60 * 1000)) {
+      EC_AI = PredictEC();
+      PH_AI = PredictPH();
+      ReadingTimer.restart();
+    }
+  } else {
+    digitalWrite(LIGHT_PIN, HIGH);
+    TemperatureAI = "Plant is sleeping for 8 hours. Time remaining: " + (24 * 360 - DayTimer.SECONDS);
+    HumidityAI = PredictHumidity();
+    if (ReadingTimer.elapsed() != 0 && ReadingTimer.hasPassed(30 * 60 * 1000)) {
+      EC_AI = PredictEC();
+      PH_AI = PredictPH();
+      ReadingTimer.restart();
+    }
   }
+
+
 
   WiFiEspClient WebClient = WebServer.available();
   if (!WebClient) { return; }
@@ -138,6 +172,9 @@ void loop() {
     HumidityAI = "Humidity: NaN - NaN";
     EC_AI = "EC: NaN - NaN";
     PH_AI = "pH: NaN - NaN";
+    DayTimer.restart();
+    CorrectionTimer.restart();
+    ReadingTimer.restart();
   }
   if (ClientRequest.indexOf("POST /ph_in") >= 0) {
     TogglePin(PH_UP_PUMP_PIN);
@@ -253,6 +290,7 @@ String PredictTemperature() {
     case 0:  // HIGH
       if (LightStatus == 0) {
         digitalWrite(LIGHT_PIN, HIGH);
+
         return "Temperature: HIGH - Light Off";
       } else {
         return "Temperature: HIGH - Light Off";
@@ -320,21 +358,27 @@ String PredictEC() {
   int EC_Down_Status = digitalRead(EC_DOWN_PUMP_PIN);
   switch (Prediction) {
     case 0:  // HIGH
-      if (EC_Down_Status == 1) {
+      if (EC_Down_Status == 1 && CorrectionTimer.hasPassed(600 * 1000)) {
         digitalWrite(EC_UP_PUMP_PIN, HIGH);
         digitalWrite(EC_DOWN_PUMP_PIN, LOW);
+        delay(10000);
+        digitalWrite(EC_DOWN_PUMP_PIN, HIGH);
+        CorrectionTimer.restart();
         return "EC: HIGH - Adding Water";
       } else {
-        return "EC: HIGH - Adding Water";
+        return "EC: HIGH - Waiting for Circulation";
       }
 
     case 1:  // LOW
-      if (EC_Up_Status == 1) {
+      if (EC_Up_Status == 1 && CorrectionTimer.hasPassed(600 * 1000)) {
         digitalWrite(EC_DOWN_PUMP_PIN, HIGH);
         digitalWrite(EC_UP_PUMP_PIN, LOW);
+        delay(10000);
+        digitalWrite(EC_UP_PUMP_PIN, HIGH);
+        CorrectionTimer.restart();
         return "EC: LOW - Adding Nutrient Solution";
       } else {
-        return "EC: LOW - Adding Nutrient Solution";
+        return "EC: LOW - Waiting for Circulation";
       }
 
     case 2:  // OK
@@ -358,21 +402,27 @@ String PredictPH() {
   int PH_Down_Status = digitalRead(PH_DOWN_PUMP_PIN);
   switch (Prediction) {
     case 0:  // HIGH
-      if (PH_Down_Status == 1) {
+      if (PH_Down_Status == 1 && CorrectionTimer.hasPassed(600 * 1000)) {
         digitalWrite(PH_UP_PUMP_PIN, HIGH);
         digitalWrite(PH_DOWN_PUMP_PIN, LOW);
+        delay(10000);
+        digitalWrite(PH_DOWN_PUMP_PIN, HIGH);
+        CorrectionTimer.restart();
         return "PH: HIGH - Adding Solution";
       } else {
-        return "PH: HIGH - Adding Solution";
+        return "PH: HIGH - Waiting for Circulation";
       }
 
     case 1:  // LOW
-      if (PH_Up_Status == 1) {
+      if (PH_Up_Status == 1 && CorrectionTimer.hasPassed(600 * 1000)) {
         digitalWrite(PH_DOWN_PUMP_PIN, HIGH);
         digitalWrite(PH_UP_PUMP_PIN, LOW);
+        delay(10000);
+        digitalWrite(PH_UP_PUMP_PIN, HIGH);
+        CorrectionTimer.restart();
         return "PH: LOW - Adding Solution";
       } else {
-        return "PH: LOW - Adding Solution";
+        return "PH: LOW - Waiting for Circulation";
       }
 
     case 2:  // OK
