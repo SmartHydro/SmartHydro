@@ -16,6 +16,7 @@ char ssid[] = "SmartHydro1";       // newtork SSID (name). 8 or more characters
 char password[] = "Password123";  // network password. 8 or more characters
 String message = "";
 
+#include <EEPROM.h>
 #include "EC.h"
 #include "pH.h"
 #include "Humidity.h"
@@ -60,6 +61,7 @@ float ecLevel;
 float phLevel;
 float lightLevel;
 float flowRate;
+float voltage, phValue, ecValue, temp= 25;
 volatile int pulseCount = 0;
 unsigned long currentTime, cloopTime;
 
@@ -120,6 +122,8 @@ void setup() {
   timer.every(SIXTEEN_HR, estimatePH);
 
   toggleLightOn(); 
+  pHCalibration();
+  ecCalibration();
 }
 
 
@@ -389,5 +393,36 @@ void toggleLightOff() {
   timer.in(FOUR_HR, toggleLightOn);
 }
 
+void pHCalibration(){
+   static unsigned long timepoint = millis();
+    if(millis()-timepoint>1000U){                  //time interval: 1s
+        timepoint = millis();
+        //temperature = readTemperature();         // read your temperature sensor to execute temperature compensation
+        voltage = analogRead(PH_PIN)/1024.0*5000;  // read the voltage
+        phValue = ph.readPH(voltage,temp);  // convert voltage to pH with temperature compensation
+        Serial.print("temperature:");
+        Serial.print(temp,1);
+        Serial.print("^C  pH:");
+        Serial.println(phValue,2);
+    }
+    ph.calibration(voltage,temp); 
+}
 
+
+void ecCalibration(){
+   static unsigned long timepoint = millis();
+    if(millis()-timepoint>1000U)  //time interval: 1s
+    {
+      timepoint = millis();
+      voltage = analogRead(EC_PIN)/1024.0*5000;   // read the voltage
+      //temperature = readTemperature();          // read your temperature sensor to execute temperature compensation
+      ecValue =  ec.readEC(voltage,temperature);  // convert voltage to EC with temperature compensation
+      Serial.print("temperature:");
+      Serial.print(temperature,1);
+      Serial.print("^C  EC:");
+      Serial.print(ecValue,2);
+      Serial.println("ms/cm");
+    }
+    ec.calibration(voltage,temperature); 
+}
 
