@@ -4,7 +4,7 @@
 #include <WiFiEspServer.h>
 #include <DHT.h>
 #include "DFRobot_PH.h"
-#include "DFRobot_EC10.h"
+#include "DFRobot_EC.h"
 #include <arduino-timer.h>
 
 //HIGH IS LOW 
@@ -12,7 +12,7 @@
 //WE DON'T KNOW EITHER
 
 // WiFi network settings
-char ssid[] = "SmartHydro1";       // newtork SSID (name). 8 or more characters
+char ssid[] = "SmartHydro";       // newtork SSID (name). 8 or more characters
 char password[] = "Password123";  // network password. 8 or more characters
 String message = "";
 
@@ -53,7 +53,7 @@ const unsigned long PUMP_INTERVAL = 5000;
 const unsigned long EIGHT_HR = 28800000;
 const unsigned long FOUR_HR = 14400000;
 
-DFRobot_EC10 ec;
+DFRobot_EC ec;
 auto timer = timer_create_default();
 float temperature;
 float humidity;
